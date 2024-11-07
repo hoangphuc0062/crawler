@@ -1,0 +1,19 @@
+{
+  "name": "crawler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "mongodb": "^6.10.0",
+    "puppeteer": "^23.7.0",
+    "puppeteer-core": "^23.7.0"
+  }
+}
