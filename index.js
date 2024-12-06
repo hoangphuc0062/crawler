@@ -4,48 +4,52 @@ const fs = require("fs");
 (async () => {
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
-  await page.goto("https://cellphones.com.vn/mobile.html", {
+  await page.goto("https://cellphones.com.vn/mobile/xiaomi.html", {
     waitUntil: "networkidle2",
   });
-  const loadAllProducts = async (page) => {
-    const buttonSelector = ".button__show-more-product";
-    let buttonExists = true;
-    let i = 1;
-    while (i < 15) {
-      // Kiểm tra nút có tồn tại không
-      buttonExists = await page.evaluate((selector) => {
-        return !!document.querySelector(selector);
-      }, buttonSelector);
+  // const loadAllProducts = async (page) => {
+  //   const buttonSelector = ".button__show-more-product";
+  //   let buttonExists = true;
 
-      if (buttonExists) {
-        // Cuộn chuột để đảm bảo nút nằm trong khung nhìn
-        await page.evaluate((selector) => {
-          const button = document.querySelector(selector);
-          if (button) {
-            button.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, buttonSelector);
+  //   while (buttonExists) {
+  //     // Kiểm tra nút có tồn tại không
+  //     buttonExists = await page.evaluate((selector) => {
+  //       return !!document.querySelector(selector);
+  //     }, buttonSelector);
 
-        // Nhấn vào nút "Xem thêm"
-        try {
-          await page.click(buttonSelector);
-          console.log("Clicked 'Xem thêm' lần" + i);
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-          i++;
-        } catch (error) {
-          console.log("Error clicking 'Xem thêm' button:", error);
-          break;
-        }
-      } else {
-        console.log("'Xem thêm' button no longer exists. Stopping...");
-      }
-    }
-  };
+  //     if (buttonExists) {
+  //       // Cuộn chuột để đảm bảo nút nằm trong khung nhìn
+  //       await page.evaluate((selector) => {
+  //         const button = document.querySelector(selector);
+  //         if (button) {
+  //           button.scrollIntoView({ behavior: "smooth", block: "center" });
+  //         }
+  //       }, buttonSelector);
 
-  // Gọi hàm loadAllProducts
-  await loadAllProducts(page);
+  //       // Nhấn vào nút "Xem thêm"
+  //       try {
+  //         await page.click(buttonSelector);
+  //         console.log("Clicked 'Xem thêm' lần" + i);
+  //         await new Promise((resolve) => setTimeout(resolve, 3000));
+  //         i++;
+  //       } catch (error) {
+  //         console.log("Error clicking 'Xem thêm' button:", error);
+  //         break;
+  //       }
+  //     } else {
+  //       console.log("'Xem thêm' button no longer exists. Stopping...");
+  //     }
+  //   }
+  // };
+
+  // // Gọi hàm loadAllProducts
+  // await loadAllProducts(page);
 
   const data = await page.evaluate(() => {
+    const categoryId = { $oid: "67298ff5943ec1913681264d" };
+    const brandId = { $oid: "6729c6977cd7db4054f980ac" };
+    const SKU = "XIAOMI";
+
     function random(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
@@ -87,20 +91,20 @@ const fs = require("fs");
 
       products.push({
         name: rawName,
-        category: "Điện thoại",
-        brand,
+        category: categoryId,
+        brand: brandId,
         slug: generateSlug(rawName),
-        SKU: "MB" + "-" + random(1000, 9999),
+        status: "active",
+        SKU: SKU + "-" + random(1000, 9999),
         price,
         thumbnail,
         historicalPrice: price - 1000000,
         priceInMarket: price,
         discount: rawDiscount ? parseInt(rawDiscount) : null,
-        inStock: random(0, 100),
+        inventory: random(0, 100),
         onStock: random(0, 100),
         inComing: random(0, 100),
         unit: "Cái",
-        weight: random(1.2, 3),
         minInventory: 10,
         maxInventory: 10000,
         isBattery: true,
@@ -131,49 +135,63 @@ const fs = require("fs");
           .map((desc) => desc.textContent.trim())
           .join("<br>");
 
-        const storageOptions = Array.from(
-          document.querySelectorAll(".list-linked .item-linked")
-        );
+        const processVariants = () => {
+          const variants = [];
 
-        const variants = [];
-        storageOptions.forEach((storageOption) => {
-          const storage = storageOption
-            .querySelector("strong")
-            .textContent.trim();
-          const price = parseInt(
-            storageOption.querySelector("span").textContent.replace(/\D/g, "")
+          // Lấy tất cả các lựa chọn dung lượng (storage)
+          const keys = Array.from(
+            document.querySelectorAll(".list-linked .item-linked")
           );
 
-          const colorVariants = Array.from(
-            document.querySelectorAll(".box-product-variants .item-variant")
-          );
-
-          colorVariants.forEach((variant) => {
-            const id = variant.getAttribute("data-product-id");
-            const name = variant
-              .querySelector(".item-variant-name")
+          keys.forEach((storageOption) => {
+            const key = storageOption
+              .querySelector("strong")
               .textContent.trim();
-            const thumbnail = variant.querySelector("img").src;
+            const price = parseInt(
+              storageOption.querySelector("span").textContent.replace(/\D/g, "")
+            );
 
+            // Lấy các màu sắc cho từng dung lượng
+            const valuesEl = Array.from(
+              document.querySelectorAll(".box-product-variants .item-variant")
+            );
+
+            const values = valuesEl.map((variant) => {
+              const id = variant.getAttribute("data-product-id");
+              const name = variant
+                .querySelector(".item-variant-name")
+                .textContent.trim();
+              const thumbnail = variant.querySelector("img").src;
+              function random(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+              }
+
+              return {
+                id,
+                name,
+                price,
+                thumbnail,
+                unit: "Cái",
+                inventory: 100,
+                onStock: 100,
+                inComing: 100,
+                minInventory: 10,
+                maxInventory: 10000,
+                stopSelling: false,
+                view: random(10, 1000),
+              };
+            });
+
+            // Thêm storage và colors vào variants
             variants.push({
-              id,
-              name,
-              storage,
+              key: key,
               price,
-              thumbnail,
-              inStock: random(0, 100),
-              onStock: random(0, 100),
-              inComing: random(0, 100),
-              unit: "Cái",
-              weight: random(1.2, 3),
-              minInventory: 10,
-              maxInventory: 10000,
-              isBattery: true,
-              stopSelling: false,
-              view: random(10, 1000),
+              values: values,
             });
           });
-        });
+
+          return variants;
+        };
         // Cuộn chuột xuống mỗi lần 100px và kiểm tra sự tồn tại của nút
         let showModalButton = null;
         for (let i = 0; i < 100; i++) {
@@ -259,7 +277,7 @@ const fs = require("fs");
           images,
           shortDescriptions,
           htmlContent,
-          variants,
+          variants: processVariants(),
           attributes,
         };
       });
@@ -277,6 +295,7 @@ const fs = require("fs");
     }
   }
 
-  fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
+  fs.writeFileSync("Xaomi.json", JSON.stringify(data, null, 2));
+
   await browser.close();
 })();
